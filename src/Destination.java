@@ -15,30 +15,37 @@ public class Destination {
         this.id = id;
         this.ip = ip;
         this.port = port;
+        this.listenPort = null;
     }
 
     public Destination(InetAddress ip, Integer port) {
         this.ip = ip;
         this.port = port;
+        this.listenPort = null;
+    }
+
+    public Destination(InetAddress ip, Integer port, Integer listenPort) {
+        this.ip = ip;
+        this.port = port;
+        this.listenPort = listenPort;
     }
 
     public Destination(String gateway) throws UnknownHostException {
         this.ip = InetAddress.getByName(gateway.split(":")[0]);
         this.port = Integer.parseInt(gateway.split(":")[1]);
+        this.listenPort = null;
     }
 
     public Destination(Integer id) {
         this.id = id;
+        this.ip = null;
+        this.port = null;
+        this.listenPort = null;
     }
-
-//    public Socket connect() throws IOException {
-//        return new Socket(ip, port);
-//    }
-
 
     public void forwardAllocationRequest(AllocationRequest request) throws IOException {
         Socket socket = new Socket(ip, port);
-        TCPHandler.sendMessage(request.getProtocolContentTab(" "), socket);
+        TCPHandler.sendMessage(request.buildProtocol(false), socket);
     }
 
     public Integer getId() {
@@ -75,8 +82,16 @@ public class Destination {
 
     @Override
     public boolean equals(Object obj) {
+        if (obj == null) return false;
         Destination d = (Destination) obj;
         return Objects.equals(d.getPort(), this.getPort()) && d.getIp() == this.getIp()
                 || Objects.equals(d.getId(), this.getId());
+    }
+
+    @Override
+    public String toString() {
+        if (listenPort == null)
+            return ip.getHostAddress() + ":" + port;
+        return ip.getHostAddress() + ":" + port + ":" + listenPort;
     }
 }

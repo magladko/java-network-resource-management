@@ -5,7 +5,10 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -37,7 +40,8 @@ public class TCPHandler implements Runnable {
 //        List<String[]> in = getMessage(socket);
         try  {
 
-            System.out.println("ADDRESS " + socket.getLocalAddress());
+            if (NetworkNode.DEBUG_INFO) System.out.println("ADDRESS " + socket.getLocalAddress());
+
             if (node.getIp() == null) {
 //                node.setPort(socket.getLocalPort());
                 node.setIp(socket.getLocalAddress());
@@ -51,7 +55,7 @@ public class TCPHandler implements Runnable {
             AllocationRequest request;
             List<String[]> out;
 
-            in.forEach(tab -> System.out.println(Arrays.asList(tab)));
+            if (NetworkNode.DEBUG_INFO) in.forEach(tab -> System.out.println(Arrays.asList(tab)));
 
             //            case "ALLOCATE":
             //                /**
@@ -93,13 +97,13 @@ public class TCPHandler implements Runnable {
 
             if ("TERMINATE".equals(in.get(0)[0])) {
 
-                System.out.println("TERMINATION BEGAN");
+                if (NetworkNode.DEBUG_INFO) System.out.println("TERMINATION BEGAN");
 
                 // send termination info everywhere possible and shutdown
 //                if (node.getResourceManager().getAllocationRequestsExecutor() != null)
                 node.getResourceManager().getAllocationRequestsExecutor().shutdownNow();
 
-                System.out.println("EXECUTOR did SHUTDOWN");
+                if (NetworkNode.DEBUG_INFO) System.out.println("EXECUTOR did SHUTDOWN");
 
                 inFromClient.close();
                 outToClient.close();
@@ -110,14 +114,12 @@ public class TCPHandler implements Runnable {
                             try {
                                 Socket terminationSocket = new Socket(destination.getIp(), destination.getPort());
 //                                outToClient.println("TERMINATE");
-                                sendMessage(Collections.singletonList(new String[]{"TERMINATE"}), terminationSocket);
+                                sendMessage("TERMINATE\n", terminationSocket);
                                 terminationSocket.close();
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
                         });
-
-//                node.getThreadPool().shutdownNow();
 
                 System.exit(0);
 
@@ -137,101 +139,37 @@ public class TCPHandler implements Runnable {
                     e.printStackTrace();
                 }
 
-            } else {
+            } else if (in.size() > 1) {
                 // connection from client => <identyfikator> <zasób>:<liczność> [<zasób>:liczność]
 
                 Integer clientId = Integer.parseInt(in.get(0)[0]);
-//                node.setResourceManager(new ResourceManager(
-//                        Arrays.stream(in.get(0)).skip(1).collect(Collectors.toList())
-//                ));
-    //                Set<Resource> requestedResources = Arrays.stream(in.get(0))
-    //                        .skip(1).map(NetworkNode::mapStrToResource).collect(Collectors.toSet());
 
-                System.out.println("allocation request received...");
-                System.out.println("allocating: " + String.join("\n\t",
-                                                                new AllocationRequest(clientId,
-                                                                                      in,
-                                                                                      node
-                                                                ).getProtocolContent()));
+                if (NetworkNode.DEBUG_INFO) System.out.println("allocation request received...");
 
-                try {
-                    request = node.getResourceManager()
-                            .requestAllocation(new AllocationRequest(clientId, in, node))
-                            .get();
-                } catch (InterruptedException | ExecutionException e) {
-                    e.printStackTrace();
-                    request = new AllocationRequest(in, node);
-                    System.exit(1);
-                }
+                request = node.getResourceManager()
+                        .requestAllocation(new AllocationRequest(clientId, in, node))
+                        .get();
 
-                System.out.println("Allocation process done.");
+                if (NetworkNode.DEBUG_INFO) System.out.println("Allocation process done.");
 
-                if (request.isCompleted()) {
-                    System.out.println("Allocation completed!");
-                    // formatting the response to match client specification
-                    List<String> response = new ArrayList<>(); //request.getProtocolContentTab(" ")
-    //                response.set(0, new String[]{"ALLOCATED"});
-                    response.add("ALLOCATED");
-                    for (int i = 2; i < request.getProtocolContent().size(); i++) {
-                        response.add(Arrays.stream(request.getProtocolContent().get(i).split(":")).limit(4).collect(
-                                Collectors.joining(":")));
-                    }
-
-//                    response.set(0, new String[]{"ALLOCATED"});
-
-
-//                    response.stream().map(tab -> new String[]{tab[0].split(":")[0]});
-
-                    System.out.println("AA");
-//                    response.forEach(tab -> Arrays.stream(tab).forEach(System.out::print));
-
-
-
-//                    response = response.stream().skip(1)
-//                            .filter(tab -> Integer.parseInt(tab[1]) == 0)
-//                            .map(tab -> {
-//                                for (String a :
-//                                        tab) {
-//                                    System.out.print(a + " ");
-//                                }
-//                                System.out.println();
-//                                return new String[]{Arrays.stream(tab).limit(4).collect(Collectors.joining(":"))};
-//                            })
-//                            .collect(Collectors.toList());
-
-                    System.out.println("AAA");
-
-//                    response.add(0, new String[]{"ALLOCATED"});
-
-                    /**
-                     * message schema:
-                     *
-                     * ALLOCATED
-                     * <zasób>:<liczność>:<ip węzła>:<port węzła>
-                     *     [...]
-                     *
-                     */
-
-//                    System.out.println(String.join("\n", request.getProtocolContent()));
-                    System.out.println(String.join("\n", response));
-                    outToClient.println(String.join("\n", response));
-
-//                    sendMessage(request.getProtocolContentTab(" "), socket);
-                } else {
-                    System.out.println("Allocation failed...");
-                    outToClient.println("FAILED");
-//                    sendMessage(Collections.singletonList(new String[]{"FAILED"}), socket);
-                }
+//                if (request.isCompleted()) {
+//                    if (NetworkNode.DEBUG_INFO) System.out.println("Allocation completed!");
+//                } else if (NetworkNode.DEBUG_INFO) System.out.println("Allocation failed...");
+//
+                if (NetworkNode.DEBUG_INFO) System.out.println(request.buildProtocol(true));
+                outToClient.println(request.buildProtocol(true));
+            } else {
+                // connection from other NetworkNode, managed inside request
+                node.getResourceManager().requestAllocation(new AllocationRequest(in, node));
 
             }
 
             inFromClient.close();
             outToClient.close();
             socket.close();
-        } catch (IOException e) {
+        } catch (IOException | ExecutionException | InterruptedException e) {
             e.printStackTrace();
         }
-
     }
 
 //    private void localMessageStatusHandler(List<String[]> producedProtocolMessage) {
@@ -284,13 +222,24 @@ public class TCPHandler implements Runnable {
 
     public static Boolean sendMessage(List<String[]> msg, Socket socket) {
         try (PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
-            out.print(String.join("\n", convertInputListToStrList(msg)));
-
+            System.out.println("sendMessage: " + String.join("\n", convertInputListToStrList(msg)));
+            out.println(String.join("\n", convertInputListToStrList(msg)));
         } catch (IOException e) {
             e.printStackTrace();
             return false;
         }
+        return true;
+    }
 
+    public static Boolean sendMessage(String msg, Socket socket) {
+        try (PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
+            System.out.println("sendMessage: " + msg);
+            if (msg.charAt(msg.length()-1) == '\n') out.print(msg);
+            else out.println(msg);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
         return true;
     }
 

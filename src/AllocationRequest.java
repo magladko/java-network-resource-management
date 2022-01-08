@@ -2,7 +2,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
@@ -10,33 +9,25 @@ import java.util.stream.Collectors;
 public class AllocationRequest implements Callable<AllocationRequest> {
 
     private final Integer clientId;
+    private AllocationStatus allocationStatus;
     private Map<Character, Integer> resourcesToAllocate;
+
+    private Destination comNode;
+    private List<RequestAllocationInfo> allocationHistory;
+
     private final NetworkNode node;
-    //    private final ResourceManager manager;
-    private List<String> protocolContent;
-//    private Destination immediateRequestSource; // client if null
-    private List<Destination> visitedNodes;
+
     private ServerSocket serverSocket;
 
-    public AllocationRequest(Integer clientId, Map<Character, Integer> resourcesToAllocate,
-                             List<String> protocolContent, NetworkNode node, List<Destination> visitedNodes) {
-        try {
-            serverSocket = new ServerSocket(0);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
+    public AllocationRequest(AllocationStatus allocationStatus, Destination comNode, Integer clientId,
+                             Map<Character, Integer> resourcesToAllocate,
+                             List<RequestAllocationInfo> allocationHistory, NetworkNode node) {
+        this.allocationStatus = allocationStatus;
+        this.comNode = comNode;
         this.clientId = clientId;
         this.resourcesToAllocate = resourcesToAllocate;
-        this.protocolContent = protocolContent;
+        this.allocationHistory = allocationHistory;
         this.node = node;
-        this.visitedNodes = visitedNodes;
-
-//        this.protocolContent = isCompleted() ? "ALLOCATED" : clientId + " "
-//                + resourcesToAllocate.entrySet().stream().map(e -> e.getKey() + ":" + e.getValue()).collect(Collectors.joining(" ", " ", ""))
-
-//                resourcesToAllocate.entrySet().stream().map((e) -> e.getKey() + ":" + e.getValue() + " ").collect(Collectors.joining());
-
     }
 
     /**
@@ -44,83 +35,73 @@ public class AllocationRequest implements Callable<AllocationRequest> {
      *
      * @param in pattern (converted to String): "<identyfikator> <zasób>:<liczność> [<zasób>:liczność]"
      */
-    public AllocationRequest(Integer clientId, List<String[]> in, NetworkNode node) {
-        try {
-            serverSocket = new ServerSocket(0);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    public AllocationRequest(Integer clientId, List<String[]> in, NetworkNode node) throws IOException {
+
+        serverSocket = new ServerSocket(0);
+        node.setListenPort(serverSocket.getLocalPort());
+        this.comNode = node;
 
         this.clientId = clientId;
         this.node = node;
-        this.visitedNodes = new ArrayList<>();
-//        this.immediateRequestSource = null;
+        this.allocationHistory = new ArrayList<>();
 
-        protocolContent = new ArrayList<>();
-        protocolContent.add("ALLOCATE " + node.getIp().getHostAddress() + ":" + node.getPort() + ":"
-                                    + serverSocket.getLocalPort());
-        protocolContent.add(String.join(" ", in.get(0)));
-
-//        resourcesToAllocate = new HashMap<>();
         resourcesToAllocate = Arrays.stream(in.get(0)).skip(1).collect(Collectors.toMap(
                 str -> str.split(":")[0].charAt(0),
                 str -> Integer.parseInt(str.split(":")[1])
         ));
-
     }
 
     /**
      * Constructor used when request forwarded from NetworkNode.
      */
-    public AllocationRequest(List<String[]> protocolMessage, NetworkNode node) {
-        try {
-            serverSocket = new ServerSocket(0);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        this.clientId = Integer.parseInt(protocolMessage.get(1)[0]);
-        this.resourcesToAllocate = Arrays.stream(protocolMessage.get(1))
-                .skip(1)
-                .collect(Collectors.toMap(
-                        str -> str.split(":")[0].charAt(0),
-                        str -> Integer.parseInt(str.split(":")[1])
-                ));
-
-        this.protocolContent = TCPHandler.convertInputListToStrList(protocolMessage);
-
-        this.visitedNodes = new ArrayList<>();
-        for (int i = 2; i < this.protocolContent.size(); i++) {
-            try {
-                this.visitedNodes.add(new Destination(
-                        InetAddress.getByName(this.protocolContent.get(i).split(":")[2]),
-                        Integer.parseInt(this.protocolContent.get(i).split(":")[3])
-                ));
-
-            } catch (UnknownHostException e) {
-                e.printStackTrace();
-            }
-        }
+    public AllocationRequest(List<String[]> protocolMessage, NetworkNode node) throws IOException {
 
         this.node = node;
-    }
 
-//    public AllocationRequest() {}
+        // LINE 1 => ALLOCATE <ComNodeIP>:<ComNodePORT>:<listenPort>    // OR
+        // LINE 1 => ALLOCATED                                          // OR
+        // LINE 1 => FAILED
+        allocationStatus = AllocationStatus.valueOf(protocolMessage.get(0)[0]);
+
+        if (allocationStatus.equals(AllocationStatus.ALLOCATE)) {
+            // LINE 1 => ALLOCATE <ComNodeIP>:<ComNodePORT>:<listenPort>
+            comNode = new Destination(
+                    InetAddress.getByName(protocolMessage.get(0)[1]),
+                    Integer.parseInt(protocolMessage.get(0)[2]),
+                    Integer.parseInt(protocolMessage.get(0)[3])
+            );
+
+            // LINE 2 => <clientId> <zasób>:<liczność> [<zasób>:liczność]
+            clientId = Integer.parseInt(protocolMessage.get(1)[0]);
+            resourcesToAllocate = Arrays.stream(protocolMessage.get(1)).skip(1).collect(Collectors.toMap(
+                    str -> str.split(":")[0].charAt(0),
+                    str -> Integer.parseInt(str.split(":")[1])
+            ));
+
+            // LINE 3... => <zasób>:<liczność>:<ip węzła>:<port węzła>[:<listenPort>]
+            for (int i = 2; i < protocolMessage.size(); i++) {
+                String[] infoLine = protocolMessage.get(i)[0].split(":");
+                allocationHistory.add(new RequestAllocationInfo(
+                        infoLine[0].charAt(0),
+                        Integer.parseInt(infoLine[1]),
+                        new Destination(
+                                InetAddress.getByName(infoLine[2]),
+                                Integer.parseInt(infoLine[3]),
+                                infoLine.length == 5 ? Integer.parseInt(infoLine[4]) : null
+                        )
+                ));
+            }
+        } else {
+            this.clientId = Integer.parseInt(protocolMessage.get(1)[0]);
+        }
+    }
 
     public Integer getClientId() {
         return clientId;
     }
 
-    public List<String[]> getProtocolContentTab(String delim) {
-        return protocolContent.stream().map(str -> str.split(delim)).collect(Collectors.toList());
-    }
-
-    public List<String> getProtocolContent() {
-        return protocolContent;
-    }
-
     public Boolean isCompleted() {
-        return resourcesToAllocate.size() == 0;
+        return resourcesToAllocate == null || resourcesToAllocate.size() == 0;
     }
 
     public Map<Character, Integer> getResourcesToAllocate() {
@@ -131,154 +112,259 @@ public class AllocationRequest implements Callable<AllocationRequest> {
         return node;
     }
 
-//    public Destination getImmediateRequestSource() {
-//        return immediateRequestSource;
-//    }
+    public AllocationStatus getAllocationStatus() {
+        return allocationStatus;
+    }
+
+    public List<Destination> getVisitedNodes() {
+        List<Destination> visitedNodes = new ArrayList<>();
+        allocationHistory.forEach(requestAllocationInfo ->
+            visitedNodes.add(requestAllocationInfo.getLocation())
+        );
+
+        return visitedNodes;
+    }
+
+    public List<RequestAllocationInfo> getAllocationHistory() {
+        return allocationHistory;
+    }
+
+    /**
+     * Allocation Request protocol types:
+     *
+     * @param toClient = false
+     * ALLOCATE <ComNodeIP>:<ComNodePORT>:<listenPort>
+     * <clientId> <zasób>:<liczność> [<zasób>:liczność]
+     * [<zasób>:<liczność>:<ip węzła>:<port węzła>[:<listenPort>]]
+     * [<zasób>:<liczność>:<ip węzła>:<port węzła>[:<listenPort>]]
+     * [...]
+     *
+     * ALLOCATED
+     * <clientId>
+     *
+     * FAILED
+     * <clientId>
+     *
+     * =================================
+     * @param toClient = true
+     * ALLOCATED
+     * <zasób>:<liczność>:<ip węzła>:<port węzła>
+     * [<zasób>:<liczność>:<ip węzła>:<port węzła>]
+     * [...]
+     *
+     * FAILED
+     *
+     */
+    public String buildProtocol(Boolean toClient) {
+        if (toClient && allocationStatus.equals(AllocationStatus.ALLOCATE))
+            throw new IllegalArgumentException();
+
+        String result = allocationStatus.getStatusString();
+        switch (allocationStatus) {
+            case ALLOCATE:
+                if (comNode != null) result += " " + comNode.toString();
+                result += "\n";
+                result += clientId + " ";
+                
+                // assures that there are no redundant requests left
+                resourcesToAllocate.entrySet().removeIf(e -> e.getValue() == 0);
+
+                StringBuilder resultBuilder = new StringBuilder(result);
+                for (Map.Entry<Character, Integer> entry : resourcesToAllocate.entrySet()) {
+                    resultBuilder.append(entry.getKey()).append(":").append(entry.getValue()).append(" ");
+                }
+                result = resultBuilder.toString();
+                result = result.substring(0, result.length() - 1);
+                result += "\n";
+
+                StringBuilder resultBuilder1 = new StringBuilder(result);
+                for (RequestAllocationInfo info : allocationHistory) {
+                    resultBuilder1.append(info.toString()).append("\n");
+                }
+                result = String.valueOf(resultBuilder1);
+                break;
+            case ALLOCATED:
+                result += "\n";
+                if (!toClient) result += clientId + "\n";
+                else {
+                    resultBuilder1 = new StringBuilder(result);
+                    for (RequestAllocationInfo info : allocationHistory) {
+                        resultBuilder1.append(info.toString()).append("\n");
+                    }
+                    result = String.valueOf(resultBuilder1);
+                }
+                break;
+            case FAILED:
+                result += "\n";
+                if (!toClient) result += clientId + "\n";
+                break;
+            default:
+                throw new EnumConstantNotPresentException(AllocationStatus.class, allocationStatus.name());
+        }
+        return result;
+    }
 
     @Override
     public AllocationRequest call() throws Exception {
 
         // TODO CHECK IF EQUALS WORKS
         // if this NetworkNode was visited, just forward the request to where it has not been yet (or parent)
-        if (this.visitedNodes.contains(node)){
-            System.out.println(clientId + " node visited, forwarding...");
+        if (getVisitedNodes().contains(node)){
+            if (NetworkNode.DEBUG_INFO) System.out.println(clientId + " node visited, forwarding...");
+
             manageRequestWhenThisNodeIsAlreadyChecked();
-            System.out.println(clientId + " request forwarded");
-        } else {
 
-            // Node has not been visited
+            if (NetworkNode.DEBUG_INFO) System.out.println(clientId + " request forwarded");
 
-            final Boolean[] resourcesLocallyAllocated = new Boolean[1];
+            return this;
+        }
 
-            // Try to allocate resources locally
+        // Node has not been visited
 
-            resourcesToAllocate.forEach((k, v) -> System.out.println(k + ":" + v));
+        final Boolean[] resourcesLocallyAllocated = new Boolean[1];
 
-            resourcesToAllocate.entrySet().removeIf(e -> {
-                Integer allocatedAmount = node.getResourceManager()
-                        .tryToAllocateResource(clientId, e.getKey(), e.getValue());
+        // Try to allocate resources locally
 
-                protocolContent.add(
-                        e.getKey() + ":" +
-                                allocatedAmount + ":" +
-                                node.getIp().getHostAddress() + ":" +
-                                node.getPort() + ":" +
-                                this.serverSocket.getLocalPort()
-                );
-                
-                e.setValue(e.getValue() - allocatedAmount);
-                
-                resourcesLocallyAllocated[0] = allocatedAmount > 0;
-                return e.getValue() == 0;
-            });
+        if (NetworkNode.DEBUG_INFO) resourcesToAllocate.forEach((k, v) -> System.out.println(k + ":" + v));
 
-            System.out.println("Allocated resources: " +
-                    node.getResourceManager().getAllocatedResources().entrySet().stream().filter(
-                    e -> Objects.equals(e.getKey().getKey(), clientId)).collect(Collectors.toList())
-            );
+        resourcesToAllocate.entrySet().removeIf(e -> {
+            Integer allocatedAmount =
+                    node.getResourceManager().tryToAllocateResource(clientId, e.getKey(), e.getValue());
+
+            allocationHistory.add(new RequestAllocationInfo(e.getKey(), e.getValue(), this.node));
+
+            e.setValue(e.getValue() - allocatedAmount);
+
+            resourcesLocallyAllocated[0] = resourcesLocallyAllocated[0] || allocatedAmount > 0;
+            return e.getValue() == 0;
+        });
+
+        if (NetworkNode.DEBUG_INFO) {
+            System.out.println("Allocated resources:\n" +
+                                       node.getResourceManager()
+                                               .getAllocatedResources()
+                                               .entrySet()
+                                               .stream()
+                                               .filter(e -> Objects.equals(e.getKey().getKey(), clientId))
+                                               .collect(Collectors.toList()));
 
             System.out.println(clientId + " isCompleted: " + isCompleted());
-
-            if (isCompleted()) {
-                // When request is completed, change protocol's header to ALLOCATED
-                System.out.println(clientId + " request fully completed!");
-                protocolContent.set(0, protocolContent.get(0).replaceFirst("ALLOCATE", "ALLOCATED"));
-
-                // sending ALLOCATED status message to all waiting NetworkNodes
-                Socket sendAllocatedStatusSocket;
-
-                // sending ALLOCATED to ComNode
-                Destination comNode = new Destination(
-                        InetAddress.getByName(protocolContent.get(0).split(" ")[1].split(":")[0]),
-                        Integer.parseInt(protocolContent.get(0).split(" ")[1].split(":")[2])
-                );
-                if (!node.equals(comNode)) {
-                    sendAllocatedStatusSocket = new Socket(comNode.getIp(), comNode.getPort());
-                    TCPHandler.sendMessage(getProtocolContentTab(" "), sendAllocatedStatusSocket);
-                    sendAllocatedStatusSocket.close();
-                }
-
-                // sending ALLOCATED to every visited Node with allocated resources
-                System.out.println(protocolContent.size() + "SIZEEEE");
-                for (int i = 2; i < protocolContent.size(); i++) {
-                    System.out.println(protocolContent.get(i).split(":")[2] + ":" +
-                                               protocolContent.get(i).split(":")[4]);
-
-
-                    Destination destination = new Destination(
-                            InetAddress.getByName(protocolContent.get(i).split(":")[2]),
-                            Integer.parseInt(protocolContent.get(i).split(":")[4]));
-
-                    if (!visitedNodes.contains(destination) ||
-                            Integer.parseInt(protocolContent.get(i).split(":")[1]) == 0 ||
-                            destination.equals(comNode)) continue;
-
-                    destination.setListenPort(Integer.parseInt(protocolContent.get(i).split(":")[4]));
-
-                    sendAllocatedStatusSocket = new Socket(destination.getIp(), destination.getListenPort());
-
-                    TCPHandler.sendMessage(getProtocolContentTab(" "), sendAllocatedStatusSocket);
-                    sendAllocatedStatusSocket.close();
-                }
-
-            } else if (resourcesLocallyAllocated[0]) {
-                // if allocated something, but not completed => forward the request and wait for response on listenPort
-
-                for (Destination child : node.getChildrenNodes()) {
-                    if (this.visitedNodes.contains(child)) continue;
-
-                    child.forwardAllocationRequest(this);
-                    // await child response
-                    List<String[]> childResponse = TCPHandler.getMessage(serverSocket.accept());
-
-                    if (Objects.equals(childResponse.get(0)[0], "FAILED")) {
-                        node.getResourceManager().deallocate(Integer.parseInt(childResponse.get(1)[0]));
-                    }
-//                    else {
-//                        manageRequestWhenThisNodeIsAlreadyChecked();
-//                    }
-                }
-            } else {
-                // if nothing allocated and not completed => forward the request and move on
-                manageRequestWhenThisNodeIsAlreadyChecked();
-            }
         }
-        return this;    // OR PROTOCOL CONTENT ??
+
+        if (isCompleted()) {
+            if (NetworkNode.DEBUG_INFO) System.out.println(clientId + " request fully completed!");
+
+            allocationStatus = AllocationStatus.ALLOCATED;
+
+            sendStatusToAllWaitingNodes();
+
+            return this;
+        }
+
+        if (resourcesLocallyAllocated[0]) {
+            // if allocated something, but not completed => forward the request and wait for the response on listenPort
+
+            node.setListenPort(serverSocket.getLocalPort());
+
+            for (Destination child : node.getChildrenNodes()) {
+                if (this.getVisitedNodes().contains(child)) continue;
+
+                if (NetworkNode.DEBUG_INFO) System.out.println("Forwarding request...");
+
+                child.forwardAllocationRequest(this);
+
+                // await child response
+                AllocationRequest childResponse =
+                        new AllocationRequest(TCPHandler.getMessage(serverSocket.accept()), node);
+
+                if (childResponse.getAllocationStatus().equals(AllocationStatus.ALLOCATED)) {
+                    allocationStatus = AllocationStatus.ALLOCATED;
+                    return this;
+                }
+
+                if (childResponse.getAllocationStatus().equals(AllocationStatus.ALLOCATE)) {
+                    this.resourcesToAllocate = childResponse.getResourcesToAllocate();
+                    this.allocationHistory = childResponse.getAllocationHistory();
+                }
+            }
+
+            if (node.getParentNode() == null && allocationStatus.equals(AllocationStatus.ALLOCATE)) {
+                // when all children checked and this is MASTER PARENT Node
+                allocationStatus = AllocationStatus.FAILED;
+
+                node.getResourceManager().deallocate(clientId);
+
+                sendStatusToAllWaitingNodes();
+                return this;
+            }
+
+            if (node.getParentNode() != null && allocationStatus.equals(AllocationStatus.ALLOCATE)) {
+                // when all children checked and Parent exists
+                node.getParentNode().forwardAllocationRequest(this);
+
+                // Await the final response
+                AllocationRequest finalResponse =
+                        new AllocationRequest(TCPHandler.getMessage(serverSocket.accept()), node);
+
+                if (finalResponse.getAllocationStatus().equals(AllocationStatus.FAILED)) {
+                    node.getResourceManager().deallocate(clientId);
+                }
+
+                return this;
+            }
+
+        } else {
+            // if nothing allocated and not completed => forward the request and move on
+            manageRequestWhenThisNodeIsAlreadyChecked();
+        }
+
+        return this;
     }
 
     private void manageRequestWhenThisNodeIsAlreadyChecked() throws IOException {
         for (Destination child : node.getChildrenNodes()) {
-            if (this.visitedNodes.contains(child)) continue;
+            if (this.getVisitedNodes().contains(child)) continue;
             child.forwardAllocationRequest(this);
             return;
         }
 
         if (node.getParentNode() == null) {
             // allocation FAILED: deallocate ALL (also outer) resources, send info to ComNode
+            allocationStatus = AllocationStatus.FAILED;
+
+            // in case there are allocated resources
             node.getResourceManager().deallocate(clientId);
 
-            Socket failedStatusSocket;
-
-            // change protocol's header
-            protocolContent.set(0, protocolContent.get(0).replaceFirst("ALLOCATED?", "FAILED"));
-
-            // send FAILED status to ComNode
-            failedStatusSocket = new Socket(InetAddress.getByName(getProtocolContentTab(" ").get(0)[1].split(":")[0]),
-                                            Integer.parseInt(getProtocolContentTab(" ").get(0)[1].split(":")[2]));
-            TCPHandler.sendMessage(getProtocolContentTab(" "), failedStatusSocket);
-            failedStatusSocket.close();
-
-
-            // send FAILED status to Nodes which allocated resources using listenPort
-            for (int i = 2; i < protocolContent.size(); i++) {
-                String[] lineParams = getProtocolContentTab(":").get(i);
-                if (Integer.parseInt(lineParams[1]) != 0) {
-                    failedStatusSocket = new Socket(InetAddress.getByName(lineParams[2]), Integer.parseInt(lineParams[4]));
-                    TCPHandler.sendMessage(getProtocolContentTab(" "), failedStatusSocket);
-                    failedStatusSocket.close();
-                }
-            }
+            sendStatusToAllWaitingNodes();
 
         } else node.getParentNode().forwardAllocationRequest(this);
+    }
+
+    private void sendStatusToAllWaitingNodes() {
+        Socket socket;
+
+        if (!comNode.equals(node)) {
+            try {
+                socket = new Socket(comNode.getIp(), comNode.getListenPort());
+                TCPHandler.sendMessage(buildProtocol(false), socket);
+                socket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        for (RequestAllocationInfo info : allocationHistory) {
+            if (!info.getLocation().equals(node.getParentNode()) &&
+                    (info.getAmount() == 0 || info.getLocation().equals(node) || info.getLocation().equals(comNode))) {
+                continue;
+            }
+            try {
+                socket = new Socket(info.getLocation().getIp(), info.getLocation().getListenPort());
+                TCPHandler.sendMessage(buildProtocol(false), socket);
+                socket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

@@ -1,11 +1,11 @@
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -13,32 +13,32 @@ import java.util.stream.Stream;
 
 public class NetworkNode extends Destination {
 
+    public static Boolean DEBUG_INFO = true;
+
     private ServerSocket comSocket;
     private Destination parentNode; // null if MASTER PARENT
-    private List<Destination> childrenNodes;
-    private ResourceManager resourceManager;
+    private final ConcurrentLinkedQueue<Destination> childrenNodes;
+    private final ResourceManager resourceManager;
 //    private ExecutorService threadPool;
 
     public NetworkNode(Integer id, Integer clientComPort, String parentGateway, ResourceManager resourceManager) {
         super(id);
-        childrenNodes = new ArrayList<>();
+        childrenNodes = new ConcurrentLinkedQueue<>();
 
         this.resourceManager = resourceManager;
 
         this.setPort(clientComPort);
         try {
-            System.out.println(parentGateway);
+            if (DEBUG_INFO) System.out.println(parentGateway);
             this.parentNode = parentGateway != null ? new Destination(parentGateway) : null;
         } catch (UnknownHostException e) {
             e.printStackTrace();
         }
 
-        System.out.println(this);
+        if (DEBUG_INFO) System.out.println(this);
 
         try {
             comSocket = new ServerSocket(clientComPort);
-//            this.setId(id);
-//            this.setIp(comSocket.getInetAddress());
 
             if (parentNode != null) {
                 // send HELLO to parentNode
@@ -53,14 +53,12 @@ public class NetworkNode extends Destination {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
 
     public void establishServerSocket(ServerSocket comSocket, int numberOfThreads) {
         try {
-//            comSocket = new ServerSocket(port);
             ExecutorService threadPool = Executors.newFixedThreadPool(numberOfThreads);
-            System.out.println(this);
+            if (DEBUG_INFO) System.out.println(this);
             while (!threadPool.isShutdown()) {
                 threadPool.submit(new TCPHandler(comSocket.accept(), this));
             }
@@ -78,7 +76,7 @@ public class NetworkNode extends Destination {
         return parentNode;
     }
 
-    public List<Destination> getChildrenNodes() {
+    public ConcurrentLinkedQueue<Destination> getChildrenNodes() {
         return childrenNodes;
     }
 
