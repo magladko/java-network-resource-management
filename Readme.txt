@@ -96,7 +96,7 @@ Możliwe komunikaty nadawane przez węzły:
 	
 	[<zasób>:<liczność>:<ip węzła>:<port węzła>[:<listenPort>]]:
 		- opcjonalne
-		- zasób: typ przygotowanych do alokacji zasobu (lub placeholder dla utrzymania historii odwiedzin, gdy liczność = 0)
+		- zasób: typ przygotowanych do alokacji zasobu (lub placeholder dla utrzymania historii odwiedzin, gdy liczność = 0
 		- liczność: liczność przygotowanych do alokacji zasobów
 		- ip węzła: adres IP węzła z oczekującymi zasobami lub węzła odwiedzonego (liczność = 0)
 		- port węzła: główny port komunikacyjny węzła, inicjowany z argumentów przy inicjalizacji programu
