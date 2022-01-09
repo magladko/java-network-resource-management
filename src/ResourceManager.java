@@ -118,7 +118,7 @@ public class ResourceManager {
 
         if (NetworkNode.REPORT_RESOURCES_LEFT) {
             System.out.print("Resources left:");
-            printAllocatedResources();
+            printNotAllocatedResources();
         }
     }
 }
