@@ -127,20 +127,9 @@ public class TCPHandler implements Runnable {
                 if (NetworkNode.DEBUG_INFO) {
                     System.out.println(request.getAllocationStatus());
                     System.out.println(request.buildProtocol(true));
-                    System.out.println("DUPADUPA");
                 }
 
                 if (NetworkNode.DEBUG_INFO) System.out.println(request.buildProtocol(true));
-
-//                if (request.getForwardedWithoutWaiting() && request.getComNode().equals(node)) {
-//                    ServerSocket listenSocket = request.getServerSocket();
-//                    while (request.getAllocationStatus().equals(AllocationStatus.ALLOCATE)) {
-//                        if (NetworkNode.DEBUG_INFO) System.out.println("WAITING AS COMNODE");
-//                        request = new AllocationRequest(getMessage(listenSocket.accept()), node);
-//                        if (request.getAllocationStatus().equals(AllocationStatus.ALLOCATE))
-//                            request = node.getResourceManager().requestAllocation(request).get();
-//                    }
-//                }
 
                 if (NetworkNode.DEBUG_INFO) System.out.println("Allocation process done. Sending info to Client");
 
