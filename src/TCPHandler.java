@@ -40,7 +40,7 @@ public class TCPHandler implements Runnable {
 //        List<String[]> in = getMessage(socket);
         try  {
 
-            if (NetworkNode.DEBUG_INFO) System.out.println("ADDRESS " + socket.getLocalAddress());
+//            if (NetworkNode.DEBUG_INFO) System.out.println("ADDRESS " + socket.getLocalAddress());
 
             if (node.getIp() == null) {
 //                node.setPort(socket.getLocalPort());
@@ -55,7 +55,7 @@ public class TCPHandler implements Runnable {
             AllocationRequest request;
             List<String[]> out;
 
-            if (NetworkNode.DEBUG_INFO) in.forEach(tab -> System.out.println(Arrays.asList(tab)));
+
 
             //            case "ALLOCATE":
             //                /**
@@ -97,6 +97,9 @@ public class TCPHandler implements Runnable {
 
             if ("TERMINATE".equals(in.get(0)[0])) {
 
+                if (NetworkNode.DEBUG_INFO) System.out.println("PROTOCOL CONTENT:");
+                if (NetworkNode.DEBUG_INFO) in.forEach(tab -> System.out.println(Arrays.asList(tab)));
+
                 if (NetworkNode.DEBUG_INFO) System.out.println("TERMINATION BEGAN");
 
                 // send termination info everywhere possible and shutdown
@@ -130,6 +133,9 @@ public class TCPHandler implements Runnable {
                  * HELLO childNodeId:childNodeIp:childNodePort
                  */
 
+                if (NetworkNode.DEBUG_INFO) System.out.println("PROTOCOL CONTENT:");
+                if (NetworkNode.DEBUG_INFO) in.forEach(tab -> System.out.println(Arrays.asList(tab)));
+
                 try {
                     node.getChildrenNodes().add(new Destination(
                             Integer.parseInt(in.get(0)[1].split(":")[0]),
@@ -139,8 +145,13 @@ public class TCPHandler implements Runnable {
                     e.printStackTrace();
                 }
 
-            } else if (in.size() > 1) {
+                if (NetworkNode.DEBUG_INFO) System.out.println(node.getChildrenNodes().toString());
+
+            } else if (in.get(0)[0].matches("\\d+.*")) {
                 // connection from client => <identyfikator> <zasób>:<liczność> [<zasób>:liczność]
+
+                if (NetworkNode.DEBUG_INFO) System.out.println("PROTOCOL CONTENT:");
+                if (NetworkNode.DEBUG_INFO) in.forEach(tab -> System.out.println(Arrays.asList(tab)));
 
                 Integer clientId = Integer.parseInt(in.get(0)[0]);
 
@@ -150,17 +161,35 @@ public class TCPHandler implements Runnable {
                         .requestAllocation(new AllocationRequest(clientId, in, node))
                         .get();
 
-                if (NetworkNode.DEBUG_INFO) System.out.println("Allocation process done.");
+                if (request.getForwardedWithoutWaiting() && request.getComNode().equals(node)) {
+                    request = new AllocationRequest(getMessage(request.getServerSocket().accept()), node);
+                }
+
+                if (NetworkNode.DEBUG_INFO) System.out.println("Allocation process done. Sending info to Client");
 
 //                if (request.isCompleted()) {
 //                    if (NetworkNode.DEBUG_INFO) System.out.println("Allocation completed!");
 //                } else if (NetworkNode.DEBUG_INFO) System.out.println("Allocation failed...");
-//
+
+
                 if (NetworkNode.DEBUG_INFO) System.out.println(request.buildProtocol(true));
+
                 outToClient.println(request.buildProtocol(true));
+
             } else {
                 // connection from other NetworkNode, managed inside request
-                node.getResourceManager().requestAllocation(new AllocationRequest(in, node));
+                String line;
+                while ((line = inFromClient.readLine()) != null) {
+                    if (!line.equals("")) in.add(line.split(" "));
+                }
+//                if (in.get(0).length == 1) {
+//                    // ALLOCATED or FAILED
+//                }
+
+                if (NetworkNode.DEBUG_INFO) System.out.println("PROTOCOL CONTENT:");
+                if (NetworkNode.DEBUG_INFO) in.forEach(tab -> System.out.println(Arrays.asList(tab)));
+
+                node.getResourceManager().requestAllocation(new AllocationRequest(in, node)).get();
 
             }
 
@@ -187,10 +216,11 @@ public class TCPHandler implements Runnable {
         try (BufferedReader inFromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
             String line;
 
+            if (NetworkNode.DEBUG_INFO) System.out.println("Received lines (" + socket.getPort() + "):");
             while ((line = inFromClient.readLine()) != null) {
-                System.out.println(line);
+                if (NetworkNode.DEBUG_INFO) System.out.println(line);
                 res.add(line.split(" "));
-                return res;
+//                return res;
 //                if (line.equals("TERMINATE") || line.)
             }
         } catch (IOException e) {
@@ -222,7 +252,8 @@ public class TCPHandler implements Runnable {
 
     public static Boolean sendMessage(List<String[]> msg, Socket socket) {
         try (PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
-            System.out.println("sendMessage: " + String.join("\n", convertInputListToStrList(msg)));
+            if (NetworkNode.DEBUG_INFO)
+                System.out.println("sendMessage" + "(" + socket.getPort() + "): \n" + String.join("\n", convertInputListToStrList(msg)));
             out.println(String.join("\n", convertInputListToStrList(msg)));
         } catch (IOException e) {
             e.printStackTrace();
@@ -233,7 +264,8 @@ public class TCPHandler implements Runnable {
 
     public static Boolean sendMessage(String msg, Socket socket) {
         try (PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
-            System.out.println("sendMessage: " + msg);
+            if (NetworkNode.DEBUG_INFO) System.out.println("sendMessage" + "(" + socket.getPort() + "): \n" + msg);
+
             if (msg.charAt(msg.length()-1) == '\n') out.print(msg);
             else out.println(msg);
         } catch (IOException e) {

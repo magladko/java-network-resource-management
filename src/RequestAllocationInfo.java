@@ -41,4 +41,9 @@ public class RequestAllocationInfo {
         return type.toString() + ":" + amount + ":" + location.getIp().getHostAddress()
                 + ":" + location.getPort() + addListenPort;
     }
+
+    public String toStringNoListenPort() {
+        return type.toString() + ":" + amount + ":" + location.getIp().getHostAddress()
+                + ":" + location.getPort();
+    }
 }

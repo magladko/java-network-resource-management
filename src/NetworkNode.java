@@ -17,17 +17,17 @@ public class NetworkNode extends Destination {
 
     private ServerSocket comSocket;
     private Destination parentNode; // null if MASTER PARENT
-    private final ConcurrentLinkedQueue<Destination> childrenNodes;
+    private final List<Destination> childrenNodes;
     private final ResourceManager resourceManager;
 //    private ExecutorService threadPool;
 
     public NetworkNode(Integer id, Integer clientComPort, String parentGateway, ResourceManager resourceManager) {
-        super(id);
-        childrenNodes = new ConcurrentLinkedQueue<>();
+        super(id, clientComPort);
+        childrenNodes = new ArrayList<>();
 
         this.resourceManager = resourceManager;
 
-        this.setPort(clientComPort);
+//        this.setPort(clientComPort);
         try {
             if (DEBUG_INFO) System.out.println(parentGateway);
             this.parentNode = parentGateway != null ? new Destination(parentGateway) : null;
@@ -39,6 +39,8 @@ public class NetworkNode extends Destination {
 
         try {
             comSocket = new ServerSocket(clientComPort);
+//            this.setIp(comSocket.getInetAddress());
+//            this.setPort(comSocket.getLocalPort());
 
             if (parentNode != null) {
                 // send HELLO to parentNode
@@ -76,7 +78,11 @@ public class NetworkNode extends Destination {
         return parentNode;
     }
 
-    public ConcurrentLinkedQueue<Destination> getChildrenNodes() {
+    public void setParentNode(Destination parentNode) {
+        this.parentNode = parentNode;
+    }
+
+    public List<Destination> getChildrenNodes() {
         return childrenNodes;
     }
 
@@ -147,6 +153,6 @@ public class NetworkNode extends Destination {
                 ", childrenNodes=" + childrenNodes +
                 ", resourceManager=" + resourceManager +
                 ", everyNeighbour=" + getEveryNeighbour() +
-                "} " + super.toString();
+                "} ";// + super.toString();
     }
 }

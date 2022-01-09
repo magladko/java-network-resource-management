@@ -1,3 +1,6 @@
+import sun.nio.ch.Net;
+import sun.security.krb5.internal.crypto.Des;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -10,6 +13,13 @@ public class Destination {
     private InetAddress ip;
     private Integer port;
     private Integer listenPort;
+
+    public Destination() {
+        this.id = null;
+        this.ip = null;
+        this.port = null;
+        this.listenPort = null;
+    }
 
     public Destination(Integer id, InetAddress ip, Integer port) {
         this.id = id;
@@ -36,10 +46,10 @@ public class Destination {
         this.listenPort = null;
     }
 
-    public Destination(Integer id) {
+    public Destination(Integer id, Integer port) {
         this.id = id;
         this.ip = null;
-        this.port = null;
+        this.port = port;
         this.listenPort = null;
     }
 
@@ -82,14 +92,29 @@ public class Destination {
 
     @Override
     public boolean equals(Object obj) {
-        if (obj == null) return false;
+
+        if (obj == null || obj.getClass() != NetworkNode.class && obj.getClass() != Destination.class)
+            return false;
+//        if (obj == null) return false;
         Destination d = (Destination) obj;
-        return Objects.equals(d.getPort(), this.getPort()) && d.getIp() == this.getIp()
-                || Objects.equals(d.getId(), this.getId());
+
+//        if (NetworkNode.DEBUG_INFO) System.out.println("\nCLASSCLASS: " + d);
+
+        return Objects.equals(this.getIp().getHostAddress(), d.getIp().getHostAddress()) &&
+                Objects.equals(this.getPort(), d.getPort());
+
+//        return (Objects.equals(d.getPort(), this.getPort()) && d.getIp() == this.getIp())
+//                || Objects.equals(d.getId(), this.getId());
     }
 
     @Override
     public String toString() {
+        if (listenPort == null)
+            return ip.getHostAddress() + ":" + port;
+        return ip.getHostAddress() + ":" + port + ":" + listenPort;
+    }
+
+    public String getStringForProtocol() {
         if (listenPort == null)
             return ip.getHostAddress() + ":" + port;
         return ip.getHostAddress() + ":" + port + ":" + listenPort;
