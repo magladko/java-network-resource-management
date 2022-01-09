@@ -1,12 +1,12 @@
 
-						                              $$$$$$\ $$\   $$\ $$$$$$$$\  $$$$$$\  
-                               						\_$$  _|$$$\  $$ |$$  _____|$$  __$$\ 
-				                              		  $$ |  $$$$\ $$ |$$ |      $$ /  $$ |
-				                              		  $$ |  $$ $$\$$ |$$$$$\    $$ |  $$ |
-		                              				  $$ |  $$ \$$$$ |$$  __|   $$ |  $$ |
-	                              					  $$ |  $$ |\$$$ |$$ |      $$ |  $$ |
-	                              					$$$$$$\ $$ | \$$ |$$ |       $$$$$$  |
-			                              			\______|\__|  \__|\__|       \______/ 
+						$$$$$$\ $$\   $$\ $$$$$$$$\  $$$$$$\  
+						\_$$  _|$$$\  $$ |$$  _____|$$  __$$\ 
+						  $$ |  $$$$\ $$ |$$ |      $$ /  $$ |
+						  $$ |  $$ $$\$$ |$$$$$\    $$ |  $$ |
+						  $$ |  $$ \$$$$ |$$  __|   $$ |  $$ |
+						  $$ |  $$ |\$$$ |$$ |      $$ |  $$ |
+						$$$$$$\ $$ | \$$ |$$ |       $$$$$$  |
+						\______|\__|  \__|\__|       \______/ 
 
 ======================================================================================================================================
 
@@ -55,7 +55,7 @@ Możliwe komunikaty nadawane przez węzły:
 	    "rodzic" po otrzymaniu komunikatu, dodaje nowy węzeł do listy węzłów-dzieci
 
 	=================================================================
-	|  HELLO <childNodeId>:<childNodeIp>:<childNodePort>        		|
+	|  HELLO <childNodeId>:<childNodeIp>:<childNodePort> 		|
 	=================================================================
 	
 	- childNodeId: identyfikator podłączanego węzła
@@ -66,7 +66,7 @@ Możliwe komunikaty nadawane przez węzły:
 >> TERMINATE -- przesyłany do wszystkich sąsiadujących węzłów (jeżeli wciąż istnieją), kończy działanie węzła
 
 	=================================================================
-	|		      	               TERMINATE	            			        |
+	|		      	   TERMINATE				|
 	=================================================================
 
 
@@ -75,13 +75,13 @@ Możliwe komunikaty nadawane przez węzły:
 	       zakończone jedną pustą linią
 
 	=================================================================
-	| ALLOCATE <ComNodeIP>:<ComNodePORT>:<listenPort>           		|
+	| ALLOCATE <ComNodeIP>:<ComNodePORT>:<listenPort> 		|
 	|***************************************************************|
-	| <clientId> <zasób>:<liczność> [<zasób>:liczność]   		        |
-	| [<zasób>:<liczność>:<ip węzła>:<port węzła>[:<listenPort>]]	  |
-	| [<zasób>:<liczność>:<ip węzła>:<port węzła>[:<listenPort>]]	  |
-	| [...]								                                          |
-	| <empty line>							                                    |
+	| <clientId> <zasób>:<liczność> [<zasób>:liczność]   		|
+	| [<zasób>:<liczność>:<ip węzła>:<port węzła>[:<listenPort>]]	|
+	| [<zasób>:<liczność>:<ip węzła>:<port węzła>[:<listenPort>]]	|
+	| [...]								|
+	| <empty line>							|
 	=================================================================
 	
 	ALLOCATE <ComNodeIP>:<ComNodePORT>:<listenPort>:
@@ -108,11 +108,11 @@ Możliwe komunikaty nadawane przez węzły:
 
 
 	=================================================================
-	| 			                  ALLOCATED                      		 		|
+	| 			  ALLOCATED		 		|
 	|***************************************************************|
-	| [<zasób>:<liczność>:<ip węzła>:<port węzła>]            			|
-	| [<zasób>:<liczność>:<ip węzła>:<port węzła>]			            |
-	| [...]								                                          |
+	| [<zasób>:<liczność>:<ip węzła>:<port węzła>]			|
+	| [<zasób>:<liczność>:<ip węzła>:<port węzła>]			|
+	| [...]								|
 	=================================================================
 	
 	[<zasób>:<liczność>:<ip węzła>:<port węzła>]:
@@ -127,9 +127,9 @@ Możliwe komunikaty nadawane przez węzły:
 	
 	(1)
 	=================================================================
-	| 			                     FAILED	                      	 		|
+	| 			  FAILED		 		|
 	|***************************************************************|
-	| <clientId>							                                      |
+	| <clientId>							|
 	=================================================================
 
 	<clientId>:
@@ -137,6 +137,7 @@ Możliwe komunikaty nadawane przez węzły:
 
 	(2)
 	=================================================================
-	| 			                     FAILED                     		 		|
+	| 			  FAILED		 		|
 	=================================================================
 	
+
