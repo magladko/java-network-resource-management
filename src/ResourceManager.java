@@ -77,8 +77,8 @@ public class ResourceManager {
             System.out.print(type + ":");
             System.out.print(amount - allocatedResources.entrySet()
                     .stream().filter(e -> e.getKey().getValue().equals(type)).mapToInt(Map.Entry::getValue).sum() + " ");
-            System.out.println();
         });
+        System.out.println();
     }
 
     public ConcurrentHashMap<Pair<Integer, Character>, Integer> getAllocatedResources() {
@@ -117,7 +117,7 @@ public class ResourceManager {
         });
 
         if (NetworkNode.REPORT_RESOURCES_LEFT) {
-            System.out.print("Resources left:");
+            System.out.print("Resources left: ");
             printNotAllocatedResources();
         }
     }
