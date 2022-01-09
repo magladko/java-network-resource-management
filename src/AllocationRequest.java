@@ -33,7 +33,6 @@ public class AllocationRequest implements Callable<AllocationRequest> {
 
     /**
      * Constructor used when request is directly from Client.
-     *
      * @param in pattern (converted to String): "<identyfikator> <zasób>:<liczność> [<zasób>:liczność]"
      */
     public AllocationRequest(Integer clientId, List<String[]> in, NetworkNode node) throws IOException {
@@ -66,28 +65,77 @@ public class AllocationRequest implements Callable<AllocationRequest> {
         this.node = node;
         allocationHistory = new ArrayList<>();
 
-
         // LINE 1 => ALLOCATE <ComNodeIP>:<ComNodePORT>:<listenPort>    // OR
         // LINE 1 => ALLOCATED                                          // OR
         // LINE 1 => FAILED
         allocationStatus = AllocationStatus.valueOf(protocolMessage.get(0)[0]);
 
-        // RESET LISTENING PORTS
-        if (this.node.getParentNode() != null) {
-            this.node.getParentNode().setListenPort(null);
-        }
-        for (int j = 0; j < this.node.getChildrenNodes().size(); j++) {
+        // RESET LISTENING PORTS (will be read from @protocolMessage if not FAILED)
+        if (this.node.getParentNode() != null) this.node.getParentNode().setListenPort(null);
+        for (int j = 0; j < this.node.getChildrenNodes().size(); j++)
             this.node.getChildrenNodes().get(j).setListenPort(null);
+
+        if (allocationStatus.equals(AllocationStatus.FAILED)) {
+            // LINE 2 => clientId
+            this.clientId = Integer.parseInt(protocolMessage.get(1)[0]);
+        } else {
+
+            int tempStartingLineIndex = 1;
+            if (allocationStatus.equals(AllocationStatus.ALLOCATE)) {
+                // LINE 1 => ALLOCATE <ComNodeIP>:<ComNodePORT>:<listenPort>
+                comNode = new Destination(
+                        InetAddress.getByName(protocolMessage.get(0)[1].split(":")[0]),
+                        Integer.parseInt(protocolMessage.get(0)[1].split(":")[1]),
+                        Integer.parseInt(protocolMessage.get(0)[1].split(":")[2])
+                );
+
+                // LINE 2 => <clientId> <zasób>:<liczność> [<zasób>:liczność]
+                clientId = Integer.parseInt(protocolMessage.get(1)[0]);
+                resourcesToAllocate = Arrays.stream(protocolMessage.get(1)).skip(1).collect(Collectors.toMap(
+                        str -> str.split(":")[0].charAt(0),
+                        str -> Integer.parseInt(str.split(":")[1])
+                ));
+
+                tempStartingLineIndex = 2;
+            }
+
+            // ALLOCATED: LINE 2... => <zasób>:<liczność>:<ip węzła>:<port węzła>[:<listenPort>]
+            // ALLOCATE:  LINE 3... => <zasób>:<liczność>:<ip węzła>:<port węzła>[:<listenPort>]
+            for (int i = tempStartingLineIndex; i < protocolMessage.size(); i++) {
+                String[] infoLine = protocolMessage.get(i)[0].split(":");
+                if (infoLine.length < 4) break;
+                if (allocationStatus.equals(AllocationStatus.ALLOCATED) && Integer.parseInt(infoLine[1]) == 0) continue;
+
+                Destination d = new Destination(
+                        InetAddress.getByName(infoLine[2]),
+                        Integer.parseInt(infoLine[3]),
+                        infoLine.length == 5 ? Integer.parseInt(infoLine[4]) : null
+                );
+
+                // overwrite listenPorts
+                if (this.node.getParentNode() != null && d.equals(this.node.getParentNode()))
+                    this.node.setParentNode(d);
+                for (int j = 0; j < this.node.getChildrenNodes().size(); j++) {
+                    if (this.node.getChildrenNodes().get(j).equals(d)) {
+                        this.node.getChildrenNodes().set(j, d);
+                    }
+                }
+
+                allocationHistory.add(new RequestAllocationInfo(
+                        infoLine[0].charAt(0),
+                        Integer.parseInt(infoLine[1]),
+                        d
+                ));
+            }
         }
 
-        if (allocationStatus.equals(AllocationStatus.ALLOCATE)) {
+        /*if (allocationStatus.equals(AllocationStatus.ALLOCATE)) {
             // LINE 1 => ALLOCATE <ComNodeIP>:<ComNodePORT>:<listenPort>
             comNode = new Destination(
                     InetAddress.getByName(protocolMessage.get(0)[1].split(":")[0]),
                     Integer.parseInt(protocolMessage.get(0)[1].split(":")[1]),
                     Integer.parseInt(protocolMessage.get(0)[1].split(":")[2])
             );
-
 
             // LINE 2 => <clientId> <zasób>:<liczność> [<zasób>:liczność]
             clientId = Integer.parseInt(protocolMessage.get(1)[0]);
@@ -97,10 +145,10 @@ public class AllocationRequest implements Callable<AllocationRequest> {
             ));
 
             // LINE 3... => <zasób>:<liczność>:<ip węzła>:<port węzła>[:<listenPort>]
-
             for (int i = 2; i < protocolMessage.size(); i++) {
                 String[] infoLine = protocolMessage.get(i)[0].split(":");
                 if (infoLine.length < 4) break;
+
                 Destination d = new Destination(
                         InetAddress.getByName(infoLine[2]),
                         Integer.parseInt(infoLine[3]),
@@ -120,7 +168,6 @@ public class AllocationRequest implements Callable<AllocationRequest> {
                         Integer.parseInt(infoLine[1]),
                         d
                 ));
-
             }
         } else {
             if (allocationStatus.equals(AllocationStatus.ALLOCATED)) {
@@ -139,7 +186,6 @@ public class AllocationRequest implements Callable<AllocationRequest> {
 
                     if (this.node.getParentNode() != null) {
                         if (d.equals(this.node.getParentNode())) this.node.setParentNode(d);
-
                     }
                     for (int j = 0; j < this.node.getChildrenNodes().size(); j++) {
 
@@ -156,7 +202,7 @@ public class AllocationRequest implements Callable<AllocationRequest> {
                 }
             } else this.clientId = Integer.parseInt(protocolMessage.get(1)[0]);
 
-        }
+        }*/
 
         if (NetworkNode.DEBUG_INFO) {
             if (this.node.getParentNode() != null) System.out.println("parentNode: " + this.node.getParentNode().getStringForProtocol());
