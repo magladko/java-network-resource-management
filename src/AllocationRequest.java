@@ -1,13 +1,9 @@
-import sun.nio.ch.Net;
-
-import javax.swing.plaf.IconUIResource;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.Callable;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class AllocationRequest implements Callable<AllocationRequest> {
@@ -70,7 +66,6 @@ public class AllocationRequest implements Callable<AllocationRequest> {
         this.node = node;
         allocationHistory = new ArrayList<>();
 
-//        if (NetworkNode.DEBUG_INFO) System.out.println("constructor started...");
 
         // LINE 1 => ALLOCATE <ComNodeIP>:<ComNodePORT>:<listenPort>    // OR
         // LINE 1 => ALLOCATED                                          // OR
@@ -85,9 +80,6 @@ public class AllocationRequest implements Callable<AllocationRequest> {
             this.node.getChildrenNodes().get(j).setListenPort(null);
         }
 
-//        int temp = 1;
-//        if (NetworkNode.DEBUG_INFO) System.out.println(temp++);
-
         if (allocationStatus.equals(AllocationStatus.ALLOCATE)) {
             // LINE 1 => ALLOCATE <ComNodeIP>:<ComNodePORT>:<listenPort>
             comNode = new Destination(
@@ -96,7 +88,6 @@ public class AllocationRequest implements Callable<AllocationRequest> {
                     Integer.parseInt(protocolMessage.get(0)[1].split(":")[2])
             );
 
-//            if (NetworkNode.DEBUG_INFO) System.out.println(temp++);
 
             // LINE 2 => <clientId> <zasób>:<liczność> [<zasób>:liczność]
             clientId = Integer.parseInt(protocolMessage.get(1)[0]);
@@ -104,10 +95,6 @@ public class AllocationRequest implements Callable<AllocationRequest> {
                     str -> str.split(":")[0].charAt(0),
                     str -> Integer.parseInt(str.split(":")[1])
             ));
-
-//            if (NetworkNode.DEBUG_INFO) System.out.println(temp++);
-
-
 
             // LINE 3... => <zasób>:<liczność>:<ip węzła>:<port węzła>[:<listenPort>]
 
@@ -121,26 +108,13 @@ public class AllocationRequest implements Callable<AllocationRequest> {
 
                 if (this.node.getParentNode() != null) {
                     if (d.equals(this.node.getParentNode())) this.node.setParentNode(d);
-//                    else this.node.getParentNode().setListenPort(null);
                 }
                 for (int j = 0; j < this.node.getChildrenNodes().size(); j++) {
-//                    System.out.println(" AAA" + j);
                     if (this.node.getChildrenNodes().get(j).equals(d)) {
                         this.node.getChildrenNodes().set(j, d);
                     }
                 }
 
-//                else if (node.getChildrenNodes().contains(d)) {
-//
-//                    node.getChildrenNodes().forEach(destination -> {
-//                        if (d.equals(destination)) {
-//                            destination.setListenPort(d.getListenPort());
-//                        }
-//                    });
-////                    node.getChildrenNodes().stream().filter(d::equals).map(destination -> d);
-//                }
-
-//                if (NetworkNode.DEBUG_INFO) System.out.println(Arrays.toString(infoLine));
                 allocationHistory.add(new RequestAllocationInfo(
                         infoLine[0].charAt(0),
                         Integer.parseInt(infoLine[1]),
@@ -162,32 +136,17 @@ public class AllocationRequest implements Callable<AllocationRequest> {
                             Integer.parseInt(infoLine[3]),
                             infoLine.length == 5 ? Integer.parseInt(infoLine[4]) : null);
 
-//                    if (d.getListenPort() != null && d.equals(node.getParentNode())) {
-//                        node.getParentNode().setListenPort(d.getListenPort());
-//                    }
-
 
                     if (this.node.getParentNode() != null) {
                         if (d.equals(this.node.getParentNode())) this.node.setParentNode(d);
-//                        else this.node.getParentNode().setListenPort(null);
+
                     }
                     for (int j = 0; j < this.node.getChildrenNodes().size(); j++) {
-//                        this.node.getChildrenNodes().get(j).setListenPort(null);
+
                         if (this.node.getChildrenNodes().get(j).equals(d)) {
                             this.node.getChildrenNodes().set(j, d);
                         }
                     }
-
-
-//                    else if (node.getChildrenNodes().contains(d)) {
-//                        node.getChildrenNodes().forEach(destination -> {
-//                            if (d.equals(destination)) {
-//                                destination.setListenPort(d.getListenPort());
-//                            }
-//                        });
-//                    node.getChildrenNodes().stream().filter(d::equals).map(destination -> d);
-//                    }
-
 
                     allocationHistory.add(new RequestAllocationInfo(
                             infoLine[0].charAt(0),
@@ -197,17 +156,8 @@ public class AllocationRequest implements Callable<AllocationRequest> {
                 }
             } else this.clientId = Integer.parseInt(protocolMessage.get(1)[0]);
 
-
-//            if (NetworkNode.DEBUG_INFO) System.out.println(temp++);
         }
-//        if (NetworkNode.DEBUG_INFO) System.out.println("constructor finished...");
 
-//        node.getParentNode().setListenPort(allocationHistory.stream().map(RequestAllocationInfo::getLocation)
-//                                                   .filter(dest -> dest.) .findAny().orElse(null).getListenPort());
-
-//        if (allocationHistory.stream().map(RequestAllocationInfo::getLocation).findAny().isPresent()) {
-//            node.getParentNode()
-//        }
         if (NetworkNode.DEBUG_INFO) {
             if (this.node.getParentNode() != null) System.out.println("parentNode: " + this.node.getParentNode().getStringForProtocol());
             System.out.println("children: ");
@@ -324,15 +274,13 @@ public class AllocationRequest implements Callable<AllocationRequest> {
                 break;
             case ALLOCATED:
                 result += "\n";
-//                if (!toClient) result += clientId + "\n";
-//                else {
+
                 resultBuilder1 = new StringBuilder(result);
                 for (RequestAllocationInfo info : allocationHistory) {
                     if (info.getAmount() == 0) continue;
                     resultBuilder1.append(info.toStringNoListenPort()).append("\n");
                 }
                 result = String.valueOf(resultBuilder1);
-//                }
                 break;
             case FAILED:
                 result += "\n";
@@ -352,7 +300,6 @@ public class AllocationRequest implements Callable<AllocationRequest> {
             if (NetworkNode.DEBUG_INFO) System.out.println(" node visited, forwarding...");
 
             manageRequestWhenThisNodeIsAlreadyChecked();
-//            forwardedWithoutWaiting = true;
 
             if (NetworkNode.DEBUG_INFO) System.out.println(clientId + " request forwarded");
 
@@ -397,8 +344,6 @@ public class AllocationRequest implements Callable<AllocationRequest> {
                                                .stream()
                                                .filter(e -> Objects.equals(e.getKey().getKey(), clientId))
                                                .collect(Collectors.toList()));
-
-//            System.out.println(clientId + " isCompleted: " + isCompleted());
         }
 
         if (isCompleted()) {
@@ -426,18 +371,9 @@ public class AllocationRequest implements Callable<AllocationRequest> {
                     System.out.print(d.getStringForProtocol() + " ");
                 }
                 System.out.println();
-//                System.out.println(this.getVisitedNodes().toString());
             }
 
             for (Destination child : node.getChildrenNodes()) {
-//                if (NetworkNode.DEBUG_INFO){
-//                    System.out.println("child: " + child);
-//                    for (Destination d :
-//                            getVisitedNodes()) {
-//                        System.out.println(d + "=?" + child + ": " + child.equals(d));
-//                    }
-////                    System.out.println(child.equals(getVisitedNodes()));
-//                }
 
                 if (this.getVisitedNodes().contains(child)) continue;
 
@@ -571,13 +507,6 @@ public class AllocationRequest implements Callable<AllocationRequest> {
 
             if (NetworkNode.DEBUG_INFO) System.out.println("updated parent: " + node.getParentNode().getStringForProtocol());
 
-//                    anyMatch(
-//                    req -> req.getLocation().getIp().getHostAddress().equals(node.getParentNode().getIp().getHostAddress()) &&
-//                    req.getLocation().getPort().equals(node.getParentNode().getPort())) && ) {
-//                Socket socket = new Socket(node.getParentNode().getIp(), node.getListenPort());
-//                TCPHandler.sendMessage(this.buildProtocol(false), socket);
-//                return;
-//            }
             if (node.getParentNode().getListenPort() != null) {
                 TCPHandler.sendMessage(this.buildProtocol(false),
                                        new Socket(node.getParentNode().getIp(), node.getParentNode().getListenPort()));

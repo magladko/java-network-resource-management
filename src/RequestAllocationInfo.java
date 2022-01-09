@@ -10,28 +10,12 @@ public class RequestAllocationInfo {
         this.location = location;
     }
 
-    public Character getType() {
-        return type;
-    }
-
-    public void setType(Character type) {
-        this.type = type;
-    }
-
     public Integer getAmount() {
         return amount;
     }
 
-    public void setAmount(Integer amount) {
-        this.amount = amount;
-    }
-
     public Destination getLocation() {
         return location;
-    }
-
-    public void setLocation(Destination location) {
-        this.location = location;
     }
 
     @Override

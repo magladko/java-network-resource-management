@@ -31,21 +31,15 @@ public class TCPHandler implements Runnable {
     @Override
     public void run() {
 
-        System.out.println("RUN!");
+        if (NetworkNode.DEBUG_INFO) System.out.println("\n\nRUN!");
 
         BufferedReader inFromClient;
         PrintWriter outToClient;
 
-
-//        List<String[]> in = getMessage(socket);
         try  {
 
-//            if (NetworkNode.DEBUG_INFO) System.out.println("ADDRESS " + socket.getLocalAddress());
+            if (node.getIp() == null) node.setIp(socket.getLocalAddress());
 
-            if (node.getIp() == null) {
-//                node.setPort(socket.getLocalPort());
-                node.setIp(socket.getLocalAddress());
-            }
 
             inFromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             outToClient = new PrintWriter(socket.getOutputStream(), true);
@@ -55,46 +49,6 @@ public class TCPHandler implements Runnable {
             AllocationRequest request;
             List<String[]> out;
 
-
-
-            //            case "ALLOCATE":
-            //                /**
-            //                 * ALLOCATE <ComNodeIP>:<ComNodePORT>:<listenPort>
-            //                 * <clientId> <zasób>:<liczność> [<zasób>:liczność]
-            //                 * [<zasób>:<liczność>:<ip węzła>:<port węzła>:<listenPort>]
-            //                 * [<zasób>:<liczność>:<ip węzła>:<port węzła>:<listenPort>]
-            //                 * [...]
-            //                 */
-            //                try {
-            //                    request = node.getResourceManager()
-            //                            .requestAllocation(new AllocationRequest(in, node))
-            //                            .get();
-            //                } catch (InterruptedException | ExecutionException e) {
-            //                    e.printStackTrace();
-            //                    request = new AllocationRequest(in, node);
-            //                    System.exit(1);
-            //                }
-            //
-            //                break;
-            //            case "ALLOCATED":
-            //                /**
-            //                 * ALLOCATED <ComNodeIP>:<ComNodePORT>:<listenPort>
-            //                 * <clientId>
-            //                 * <zasób>:<liczność>:<ip węzła>:<port węzła>:<listenPort>
-            //                 * [<zasób>:<liczność>:<ip węzła>:<port węzła>:<listenPort>]
-            //                 * [...]
-            //                 */
-            //                break;
-            //            case "FAILED":
-            //                /**
-            //                 * FAILED <ComNodeIP>:<ComNodePORT>:<listenPort>
-            //                 * <clientId>
-            //                 * [<zasób>:<liczność>:<ip węzła>:<port węzła>:<listenPort>]
-            //                 * [<zasób>:<liczność>:<ip węzła>:<port węzła>:<listenPort>]
-            //                 * [...]
-            //                 */
-            //                break;
-
             if ("TERMINATE".equals(in.get(0)[0])) {
 
                 if (NetworkNode.DEBUG_INFO) System.out.println("PROTOCOL CONTENT:");
@@ -103,7 +57,6 @@ public class TCPHandler implements Runnable {
                 if (NetworkNode.DEBUG_INFO) System.out.println("TERMINATION BEGAN");
 
                 // send termination info everywhere possible and shutdown
-//                if (node.getResourceManager().getAllocationRequestsExecutor() != null)
                 node.getResourceManager().getAllocationRequestsExecutor().shutdownNow();
 
                 if (NetworkNode.DEBUG_INFO) System.out.println("EXECUTOR did SHUTDOWN");
@@ -116,7 +69,6 @@ public class TCPHandler implements Runnable {
                         .forEach(destination -> {
                             try {
                                 Socket terminationSocket = new Socket(destination.getIp(), destination.getPort());
-//                                outToClient.println("TERMINATE");
                                 sendMessage("TERMINATE\n", terminationSocket);
                                 terminationSocket.close();
                             } catch (IOException e) {
@@ -167,11 +119,6 @@ public class TCPHandler implements Runnable {
 
                 if (NetworkNode.DEBUG_INFO) System.out.println("Allocation process done. Sending info to Client");
 
-//                if (request.isCompleted()) {
-//                    if (NetworkNode.DEBUG_INFO) System.out.println("Allocation completed!");
-//                } else if (NetworkNode.DEBUG_INFO) System.out.println("Allocation failed...");
-
-
                 if (NetworkNode.DEBUG_INFO) System.out.println(request.buildProtocol(true));
 
                 outToClient.println(request.buildProtocol(true));
@@ -182,9 +129,6 @@ public class TCPHandler implements Runnable {
                 while ((line = inFromClient.readLine()) != null) {
                     if (!line.equals("")) in.add(line.split(" "));
                 }
-//                if (in.get(0).length == 1) {
-//                    // ALLOCATED or FAILED
-//                }
 
                 if (NetworkNode.DEBUG_INFO) System.out.println("PROTOCOL CONTENT:");
                 if (NetworkNode.DEBUG_INFO) in.forEach(tab -> System.out.println(Arrays.asList(tab)));
@@ -201,16 +145,6 @@ public class TCPHandler implements Runnable {
         }
     }
 
-//    private void localMessageStatusHandler(List<String[]> producedProtocolMessage) {
-//        switch (producedProtocolMessage.get(0)[0]) {
-//            case "ALLOCATE":
-//                while ()
-//                break;
-//            case "ALLOCATED":
-//
-//        }
-//    }
-
     public static List<String[]> getMessage(Socket socket) {
         ArrayList<String[]> res = new ArrayList<>();
         try (BufferedReader inFromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
@@ -220,35 +154,13 @@ public class TCPHandler implements Runnable {
             while ((line = inFromClient.readLine()) != null) {
                 if (NetworkNode.DEBUG_INFO) System.out.println(line);
                 res.add(line.split(" "));
-//                return res;
-//                if (line.equals("TERMINATE") || line.)
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-//        System.out.println(res);
         return res;
     }
-
-//    public static List<String[]> getSingleMessageAndMaintainConnection(Socket socket) {
-//        ArrayList<String[]> res = new ArrayList<>();
-//        try (BufferedReader inFromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
-//            String line;
-//
-//            while ((line = inFromClient.readLine()) != null) {
-//                System.out.println(line);
-//                res.add(line.split(" "));
-//                return res;
-////                if (line.equals("TERMINATE") || line.)
-//            }
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//
-////        System.out.println(res);
-//        return res;
-//    }
 
     public static Boolean sendMessage(List<String[]> msg, Socket socket) {
         try (PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {

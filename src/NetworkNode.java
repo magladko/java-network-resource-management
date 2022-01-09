@@ -5,7 +5,6 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -19,7 +18,6 @@ public class NetworkNode extends Destination {
     private Destination parentNode; // null if MASTER PARENT
     private final List<Destination> childrenNodes;
     private final ResourceManager resourceManager;
-//    private ExecutorService threadPool;
 
     public NetworkNode(Integer id, Integer clientComPort, String parentGateway, ResourceManager resourceManager) {
         super(id, clientComPort);
@@ -39,8 +37,6 @@ public class NetworkNode extends Destination {
 
         try {
             comSocket = new ServerSocket(clientComPort);
-//            this.setIp(comSocket.getInetAddress());
-//            this.setPort(comSocket.getLocalPort());
 
             if (parentNode != null) {
                 // send HELLO to parentNode
@@ -66,12 +62,7 @@ public class NetworkNode extends Destination {
             }
         } catch (IOException e) {
             e.printStackTrace();
-//            System.exit(1);
         }
-    }
-
-    public ServerSocket getComSocket() {
-        return comSocket;
     }
 
     public Destination getParentNode() {
@@ -95,10 +86,6 @@ public class NetworkNode extends Destination {
         return resourceManager;
     }
 
-//    public void setResourceManager(ResourceManager resourceManager) {
-//        this.resourceManager = resourceManager;
-//    }
-
     public static void main(String[] args) {
 
         // parameter storage
@@ -118,8 +105,6 @@ public class NetworkNode extends Destination {
                     break;
                 case "-gateway":
                     gateway = args[++i];
-//                    gateway = gatewayArray;
-//                    tcpPort = Integer.parseInt(gatewayArray[1]);
                     break;
                 default:
                     if(resourceList == null) resourceList = new StringBuilder(args[i]);
@@ -136,7 +121,6 @@ public class NetworkNode extends Destination {
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
-//            System.
         }
 
     }
@@ -153,6 +137,6 @@ public class NetworkNode extends Destination {
                 ", childrenNodes=" + childrenNodes +
                 ", resourceManager=" + resourceManager +
                 ", everyNeighbour=" + getEveryNeighbour() +
-                "} ";// + super.toString();
+                "} ";
     }
 }

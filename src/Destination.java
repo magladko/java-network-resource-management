@@ -1,6 +1,3 @@
-import sun.nio.ch.Net;
-import sun.security.krb5.internal.crypto.Des;
-
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -78,33 +75,26 @@ public class Destination {
         this.listenPort = listenPort;
     }
 
-    public void setId(Integer id) {
-        this.id = id;
-    }
-
     public void setIp(InetAddress ip) {
         this.ip = ip;
     }
 
-    public void setPort(Integer port) {
-        this.port = port;
-    }
 
+    /**
+     * Equals override
+     * @param obj - comparing object
+     * @return - true if ip and port of Destination classes are the same, false in every other case
+     */
     @Override
     public boolean equals(Object obj) {
 
         if (obj == null || obj.getClass() != NetworkNode.class && obj.getClass() != Destination.class)
             return false;
-//        if (obj == null) return false;
-        Destination d = (Destination) obj;
 
-//        if (NetworkNode.DEBUG_INFO) System.out.println("\nCLASSCLASS: " + d);
+        Destination d = (Destination) obj;
 
         return Objects.equals(this.getIp().getHostAddress(), d.getIp().getHostAddress()) &&
                 Objects.equals(this.getPort(), d.getPort());
-
-//        return (Objects.equals(d.getPort(), this.getPort()) && d.getIp() == this.getIp())
-//                || Objects.equals(d.getId(), this.getId());
     }
 
     @Override
