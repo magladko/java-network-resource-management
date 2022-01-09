@@ -29,6 +29,7 @@ public class AllocationRequest implements Callable<AllocationRequest> {
         this.resourcesToAllocate = resourcesToAllocate;
         this.allocationHistory = allocationHistory;
         this.node = node;
+        forwardedWithoutWaiting = false;
     }
 
     /**
@@ -64,6 +65,7 @@ public class AllocationRequest implements Callable<AllocationRequest> {
         if (NetworkNode.DEBUG_INFO) System.out.println("from NetNode CONSTRUCTOR initiated");
         this.node = node;
         allocationHistory = new ArrayList<>();
+        this.forwardedWithoutWaiting = false;
 
         // LINE 1 => ALLOCATE <ComNodeIP>:<ComNodePORT>:<listenPort>    // OR
         // LINE 1 => ALLOCATED                                          // OR
@@ -129,81 +131,6 @@ public class AllocationRequest implements Callable<AllocationRequest> {
             }
         }
 
-        /*if (allocationStatus.equals(AllocationStatus.ALLOCATE)) {
-            // LINE 1 => ALLOCATE <ComNodeIP>:<ComNodePORT>:<listenPort>
-            comNode = new Destination(
-                    InetAddress.getByName(protocolMessage.get(0)[1].split(":")[0]),
-                    Integer.parseInt(protocolMessage.get(0)[1].split(":")[1]),
-                    Integer.parseInt(protocolMessage.get(0)[1].split(":")[2])
-            );
-
-            // LINE 2 => <clientId> <zasób>:<liczność> [<zasób>:liczność]
-            clientId = Integer.parseInt(protocolMessage.get(1)[0]);
-            resourcesToAllocate = Arrays.stream(protocolMessage.get(1)).skip(1).collect(Collectors.toMap(
-                    str -> str.split(":")[0].charAt(0),
-                    str -> Integer.parseInt(str.split(":")[1])
-            ));
-
-            // LINE 3... => <zasób>:<liczność>:<ip węzła>:<port węzła>[:<listenPort>]
-            for (int i = 2; i < protocolMessage.size(); i++) {
-                String[] infoLine = protocolMessage.get(i)[0].split(":");
-                if (infoLine.length < 4) break;
-
-                Destination d = new Destination(
-                        InetAddress.getByName(infoLine[2]),
-                        Integer.parseInt(infoLine[3]),
-                        infoLine.length == 5 ? Integer.parseInt(infoLine[4]) : null);
-
-                if (this.node.getParentNode() != null) {
-                    if (d.equals(this.node.getParentNode())) this.node.setParentNode(d);
-                }
-                for (int j = 0; j < this.node.getChildrenNodes().size(); j++) {
-                    if (this.node.getChildrenNodes().get(j).equals(d)) {
-                        this.node.getChildrenNodes().set(j, d);
-                    }
-                }
-
-                allocationHistory.add(new RequestAllocationInfo(
-                        infoLine[0].charAt(0),
-                        Integer.parseInt(infoLine[1]),
-                        d
-                ));
-            }
-        } else {
-            if (allocationStatus.equals(AllocationStatus.ALLOCATED)) {
-                // LINE 2... => <zasób>:<liczność>:<ip węzła>:<port węzła>
-
-                for (int i = 1; i < protocolMessage.size(); i++) {
-                    String[] infoLine = protocolMessage.get(i)[0].split(":");
-                    if (infoLine.length < 4) break;
-
-                    if (Integer.parseInt(infoLine[1]) == 0) continue;
-                    Destination d = new Destination(
-                            InetAddress.getByName(infoLine[2]),
-                            Integer.parseInt(infoLine[3]),
-                            infoLine.length == 5 ? Integer.parseInt(infoLine[4]) : null);
-
-
-                    if (this.node.getParentNode() != null) {
-                        if (d.equals(this.node.getParentNode())) this.node.setParentNode(d);
-                    }
-                    for (int j = 0; j < this.node.getChildrenNodes().size(); j++) {
-
-                        if (this.node.getChildrenNodes().get(j).equals(d)) {
-                            this.node.getChildrenNodes().set(j, d);
-                        }
-                    }
-
-                    allocationHistory.add(new RequestAllocationInfo(
-                            infoLine[0].charAt(0),
-                            Integer.parseInt(infoLine[1]),
-                            d
-                    ));
-                }
-            } else this.clientId = Integer.parseInt(protocolMessage.get(1)[0]);
-
-        }*/
-
         if (NetworkNode.DEBUG_INFO) {
             if (this.node.getParentNode() != null) System.out.println("parentNode: " + this.node.getParentNode().getStringForProtocol());
             System.out.println("children: ");
@@ -268,7 +195,7 @@ public class AllocationRequest implements Callable<AllocationRequest> {
      * [<zasób>:<liczność>:<ip węzła>:<port węzła>[:<listenPort>]]
      * [<zasób>:<liczność>:<ip węzła>:<port węzła>[:<listenPort>]]
      * [...]
-     * // end with empty line
+     * // ends with empty line
      *
      * ALLOCATED
      * <zasób>:<liczność>:<ip węzła>:<port węzła>
@@ -293,6 +220,7 @@ public class AllocationRequest implements Callable<AllocationRequest> {
             throw new IllegalArgumentException();
 
         String result = allocationStatus.getStatusString();
+        if (NetworkNode.DEBUG_INFO) System.out.println("first success");
         switch (allocationStatus) {
             case ALLOCATE:
                 if (comNode != null) result += " " + comNode.getStringForProtocol();
@@ -349,6 +277,10 @@ public class AllocationRequest implements Callable<AllocationRequest> {
 
             if (NetworkNode.DEBUG_INFO) System.out.println(clientId + " request forwarded");
 
+            if (NetworkNode.DEBUG_INFO) {
+                node.getResourceManager().printAvailableResources();
+                node.getResourceManager().printAllocatedResources();
+            }
             return this;
         }
 
@@ -358,10 +290,10 @@ public class AllocationRequest implements Callable<AllocationRequest> {
         resourcesLocallyAllocated[0] = false;
 
         // Try to allocate resources locally
-
         if (NetworkNode.DEBUG_INFO) {
             System.out.println("To allocate (trying to allocate): ");
-            resourcesToAllocate.forEach((k, v) -> System.out.println(k + ":" + v));
+            resourcesToAllocate.forEach((k, v) -> System.out.print(k + ":" + v + " "));
+            System.out.println();
         }
 
         resourcesToAllocate.entrySet().removeIf(e -> {
@@ -383,9 +315,9 @@ public class AllocationRequest implements Callable<AllocationRequest> {
         });
 
         if (NetworkNode.DEBUG_INFO) {
-            System.out.println("Allocated resources:\n" +
+            System.out.println("Pending resources:\n" +
                                        node.getResourceManager()
-                                               .getAllocatedResources()
+                                               .getPendingResources()
                                                .entrySet()
                                                .stream()
                                                .filter(e -> Objects.equals(e.getKey().getKey(), clientId))
@@ -401,6 +333,12 @@ public class AllocationRequest implements Callable<AllocationRequest> {
             if (NetworkNode.DEBUG_INFO) System.out.println("sending status to all waiting nodes...");
             sendStatusToAllWaitingNodes();
 
+            if (resourcesLocallyAllocated[0]) node.getResourceManager().allocate(clientId);
+
+            if (NetworkNode.DEBUG_INFO) {
+                node.getResourceManager().printAvailableResources();
+                node.getResourceManager().printAllocatedResources();
+            }
             return this;
         }
 
@@ -441,6 +379,13 @@ public class AllocationRequest implements Callable<AllocationRequest> {
                             .filter(destination -> destination.equals(node))
                             .forEach(destination -> destination.setListenPort(null));
                     node.setListenPort(null);
+
+                    node.getResourceManager().allocate(clientId);
+
+                    if (NetworkNode.DEBUG_INFO) {
+                        node.getResourceManager().printAvailableResources();
+                        node.getResourceManager().printAllocatedResources();
+                    }
                     return this;
                 }
 
@@ -463,6 +408,11 @@ public class AllocationRequest implements Callable<AllocationRequest> {
 
                 if (NetworkNode.DEBUG_INFO) System.out.println("sending FAILED status to every waiting Node");
                 sendStatusToAllWaitingNodes();
+
+                if (NetworkNode.DEBUG_INFO) {
+                    node.getResourceManager().printAvailableResources();
+                    node.getResourceManager().printAllocatedResources();
+                }
                 return this;
             }
 
@@ -489,31 +439,45 @@ public class AllocationRequest implements Callable<AllocationRequest> {
                 AllocationRequest finalResponse =
                         new AllocationRequest(TCPHandler.getMessage(serverSocket.accept()), node);
 
-                if (finalResponse.getAllocationStatus().equals(AllocationStatus.FAILED)) {
+                allocationStatus = finalResponse.getAllocationStatus();
+                if (allocationStatus.equals(AllocationStatus.FAILED)) {
 
                     node.getResourceManager().deallocate(clientId);
                     if (NetworkNode.DEBUG_INFO) System.out.println("allocation failed.");
                 } else {
-                    allocationStatus = finalResponse.getAllocationStatus();
+//                    allocationStatus = finalResponse.getAllocationStatus();
                     resourcesToAllocate = finalResponse.getResourcesToAllocate();
                     allocationHistory = finalResponse.getAllocationHistory();
                     allocationHistory.stream().map(RequestAllocationInfo::getLocation)
                             .filter(destination -> destination.equals(node))
                             .forEach(destination -> destination.setListenPort(null));
+
+
+                    if(NetworkNode.DEBUG_INFO) System.out.println(buildProtocol(true));
+                    node.getResourceManager().allocate(clientId);
                     if (NetworkNode.DEBUG_INFO) System.out.println("allocation successful");
                 }
                 node.setListenPort(null);
                 if (NetworkNode.DEBUG_INFO) System.out.println("cleared listenPort");
 
+                if (NetworkNode.DEBUG_INFO) {
+                    node.getResourceManager().printAvailableResources();
+                    node.getResourceManager().printAllocatedResources();
+                }
                 return this;
             }
 
         } else {
             // if nothing allocated and not completed => forward the request and move on
             manageRequestWhenThisNodeIsAlreadyChecked();
+            if (NetworkNode.DEBUG_INFO) System.out.println("dupa");
 
         }
 
+        if (NetworkNode.DEBUG_INFO) {
+            node.getResourceManager().printAvailableResources();
+            node.getResourceManager().printAllocatedResources();
+        }
         return this;
     }
 
@@ -538,7 +502,6 @@ public class AllocationRequest implements Callable<AllocationRequest> {
             sendStatusToAllWaitingNodes();
 
         } else {
-
 
             try {
                 if (node.getParentNode() != null) {
@@ -566,7 +529,6 @@ public class AllocationRequest implements Callable<AllocationRequest> {
 
         if (!comNode.equals(node)) {
             try {
-//                if (NetworkNode.DEBUG_INFO) System.out.println("TO COMNODE");
                 socket = new Socket(comNode.getIp(), comNode.getListenPort());
                 if (NetworkNode.DEBUG_INFO) System.out.println("INFO TO COMNODE");
                 TCPHandler.sendMessage(buildProtocol(false), socket);

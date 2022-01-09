@@ -6,4 +6,5 @@ timeout 1 > NUL
 start java NetworkNode -ident 3 -tcpport 9002 -gateway localhost:9001 C:1 
 timeout 1 > NUL
 java NetworkClient -ident 1 -gateway localhost:9000 A:1 B:1 C:1
+pause
 java NetworkClient -gateway localhost:9000 terminate

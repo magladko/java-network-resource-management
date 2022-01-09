@@ -12,7 +12,8 @@ import java.util.stream.Stream;
 
 public class NetworkNode extends Destination {
 
-    public static Boolean DEBUG_INFO = true;
+    public static Boolean DEBUG_INFO = false;
+    public static Boolean REPORT_RESOURCES_LEFT = true;
 
     private ServerSocket comSocket;
     private Destination parentNode; // null if MASTER PARENT

@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -71,8 +72,8 @@ public class TCPHandler implements Runnable {
                                 Socket terminationSocket = new Socket(destination.getIp(), destination.getPort());
                                 sendMessage("TERMINATE\n", terminationSocket);
                                 terminationSocket.close();
-                            } catch (IOException e) {
-                                e.printStackTrace();
+                            } catch (IOException ignored) {
+                                System.exit(0);
                             }
                         });
 
@@ -113,13 +114,39 @@ public class TCPHandler implements Runnable {
                         .requestAllocation(new AllocationRequest(clientId, in, node))
                         .get();
 
-                if (request.getForwardedWithoutWaiting() && request.getComNode().equals(node)) {
-                    request = new AllocationRequest(getMessage(request.getServerSocket().accept()), node);
+                if (node.equals(request.getComNode()) && request.getAllocationStatus().equals(AllocationStatus.ALLOCATE)) {
+                    if (NetworkNode.DEBUG_INFO) System.out.println("managing ComNode...");
+                    ServerSocket listenSocket = request.getServerSocket();
+                    while (request.getAllocationStatus().equals(AllocationStatus.ALLOCATE)) {
+                        request = new AllocationRequest(getMessage(listenSocket.accept()), node);
+                        if (request.getAllocationStatus().equals(AllocationStatus.ALLOCATE))
+                            request = node.getResourceManager().requestAllocation(request).get();
+                    }
                 }
+
+                if (NetworkNode.DEBUG_INFO) {
+                    System.out.println(request.getAllocationStatus());
+                    System.out.println(request.buildProtocol(true));
+                    System.out.println("DUPADUPA");
+                }
+
+                if (NetworkNode.DEBUG_INFO) System.out.println(request.buildProtocol(true));
+
+//                if (request.getForwardedWithoutWaiting() && request.getComNode().equals(node)) {
+//                    ServerSocket listenSocket = request.getServerSocket();
+//                    while (request.getAllocationStatus().equals(AllocationStatus.ALLOCATE)) {
+//                        if (NetworkNode.DEBUG_INFO) System.out.println("WAITING AS COMNODE");
+//                        request = new AllocationRequest(getMessage(listenSocket.accept()), node);
+//                        if (request.getAllocationStatus().equals(AllocationStatus.ALLOCATE))
+//                            request = node.getResourceManager().requestAllocation(request).get();
+//                    }
+//                }
 
                 if (NetworkNode.DEBUG_INFO) System.out.println("Allocation process done. Sending info to Client");
 
-                if (NetworkNode.DEBUG_INFO) System.out.println(request.buildProtocol(true));
+                if (NetworkNode.DEBUG_INFO) {
+                    System.out.println(request.buildProtocol(true));
+                }
 
                 outToClient.println(request.buildProtocol(true));
 
