@@ -6,6 +6,7 @@ import java.net.UnknownHostException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+
 public class test {
 
     public static void main(String[] args) {
@@ -31,11 +32,7 @@ public class test {
 //            e.printStackTrace();
 //        }
 
-        Integer aa = null;
-
-        aa = null;
-
-        System.out.println(aa);
+        System.out.println(new Pair<Integer, Character>(3, 'a').equals(new Pair<Integer, Character>(1, 'a')));
 
 
 //        String[] str = new String[]{"aa", "BB"};
