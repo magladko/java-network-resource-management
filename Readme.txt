@@ -13,6 +13,7 @@
  >> kompilacja projektu:
 	
 	javac AllocationRequest.java
+	javac -encoding utf8 NetworkClient.java
 	
 >> uruchomienie odbywa się zgodnie z przedstawioną w specyfikacji procedurą, 
    przykładowe skrypt testowe uruchamiające projekt znajdują się w folderze ./GAKKOtestScripts
